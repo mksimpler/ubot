@@ -40,6 +40,7 @@ class ADBClient:
                 self._device = client.device(self._serial)
 
             self._state = ADBServerState.OPENED
+            logger.debug("ADB server started successfully.")
         except Exception as ex:
             _adb_kill_server()
             logger.debug("ADB server has failed to start.")

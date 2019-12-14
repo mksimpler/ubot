@@ -28,10 +28,14 @@ class ADBFrameGrabber:
         self.frame_time = 1 / fps
 
         self.is_running = False
+        self.worker = None
 
         self.shared_dirs = config["Emulator"]["SharedFolders"]
 
     def start(self):
+
+        if self.is_running:
+            return
 
         def _worker():
             while self.is_running:
@@ -85,6 +89,7 @@ class ADBFrameGrabber:
                     header = (self.screen_height, self.screen_width, 4)
 
                     frame_data = numpy.frombuffer(buffer, dtype=numpy.uint8).reshape(header)
+                    frame_data = cv2.cvtColor(frame_data, cv2.COLOR_RGBA2GRAY)
 
             finally:
                 self.adb_client.shell(f"rm {dev_path}")
