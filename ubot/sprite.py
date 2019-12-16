@@ -48,7 +48,7 @@ class Sprite:
             return Sprite(new_name, cv2.resize(sprite.image_data, new_size, interpolation=cv2.INTER_LINEAR))
 
         if scale is not None:
-            return Sprite(new_name, None, fx=scale, fy=scale)
+            return Sprite(new_name, cv2.resize(sprite.image_data, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR))
 
         return sprite
 

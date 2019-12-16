@@ -1,8 +1,6 @@
 import numpy
 import cv2
 
-from scipy import spatial
-
 from ubot.coordinates import as_coordinate
 
 
@@ -25,7 +23,7 @@ class SpriteLocator:
         return region_or_list
 
     def locate(self, sprite=None, screen_frame=None, threshold=None, return_best=False):
-        frame = screen_frame
+        frame = screen_frame.image_data
         match_locations = cv2.matchTemplate(frame, sprite.image_data, cv2.TM_CCOEFF_NORMED)
         _, width, height = sprite.image_data.shape[::-1]
 
@@ -81,24 +79,7 @@ def _filter_similar_coords(coords, distance):
     if len(coords) > 0:
         filtered_coords.append(coords[0])
         for coord in coords:
-            if _find_closest(filtered_coords, coord)[0] > distance:
+            if as_coordinate(coord).find_closest(filtered_coords)[0] > distance:
                 filtered_coords.append(coord)
 
     return filtered_coords
-
-
-def _find_closest(coords, coord):
-    """
-    Utilizes a k-d tree to find the closest coordiante to the specified
-    list of coordinates.
-
-    Args:
-        coords (array): Array of coordinates to search.
-        coord (array): Array containing x and y of the coordinate.
-
-    Returns:
-        array: An array containing the distance of the closest coordinate
-            in the list of coordinates to the specified coordinate as well the
-            index of where it is in the list of coordinates
-    """
-    return spatial.KDTree(coords).query(coord)

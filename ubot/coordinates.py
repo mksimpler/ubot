@@ -7,27 +7,22 @@ class _Coordinate:
         coord_x (int): Initial x coordinate of the region (top-left).
         coord_y (int): Initial y coordinate of the region (top-left).
     """
-    def __init__(self, coord_x, coord_y):
-        self.coord_x = coord_x
-        self.coord_y = coord_y
+    def __init__(self, *args):
+        self.array = tuple(int(i) for i in args)
 
     def __str__(self):
-        return "[{}, {}]".format(self.coord_x, self.coord_y)
-
+        return str(self.array)
 
     def __eq__(self, other):
-        return self.coord_x == other.coord_x and self.coord_y == other.coord_y
+        return self.array == other.array
 
+    @property
+    def coord_x(self):
+        return self.array[0]
 
-    def to_array(self):
-        """
-        Convert to array
-
-        Returns:
-            tuple(int) - (coord_x, coord_y)
-        """
-        return self.coord_x, self.coord_y
-
+    @property
+    def coord_y(self):
+        return self.array[1]
 
     def distance(self, other):
         """
@@ -37,13 +32,21 @@ class _Coordinate:
         dy = self.coord_y - other.coord_y
         return int(_math.sqrt(dx**2 + dy**2))
 
-
     def find_closest(self, coords):
         """
-        Find the closest coordiante to the specified list of coordinates.
+        Utilizes a k-d tree to find the closest coordiante to the specified
+        list of coordinates.
+
+        Args:
+            coords (array): Array of coordinates to search.
+
+        Returns:
+            array: An array containing the distance of the closest coordinate
+                in the list of coordinates to the specified coordinate as well the
+                index of where it is in the list of coordinates
         """
-        coords = [coord.to_array() if isinstance(coord, _Coordinate) else coord for coord in coords]
-        return _find_closest(coords, self.to_array())
+        coords = [coord.array if isinstance(coord, _Coordinate) else coord for coord in coords]
+        return spatial.KDTree(coords).query(self.array)
 
 
 class Region(_Coordinate):
@@ -54,44 +57,19 @@ class Region(_Coordinate):
         width (int): Width of the region.
         height (int): Height of the region.
     """
-    def __init__(self, coord_x, coord_y, width, height):
-        super().__init__(coord_x, coord_y)
-        self.width = width
-        self.height = height
-
+    def __init__(self, *args):
+        super().__init__(*args)
 
     def __str__(self):
-        return "[{}, {}:{}, {}]".format(self.coord_x, self.coord_y, self.width, self.height)
+        return f"({self.array[0]}:{self.array[2]}, {self.array[1]}:{self.array[3]})"
 
+    @property
+    def width(self):
+        return self.array[2]
 
-    def __eq__(self, other):
-        if isinstance(other, Region):
-            other = other.to_array()
-
-        return self.coord_x == other[0] and \
-                self.coord_y == other[1] and \
-                self.width == other[2] and \
-                self.height == other[3]
-
-
-    @staticmethod
-    def cast(coords):
-        """
-        Try convert coord to region
-        """
-        if isinstance(coords, Region):
-            return coords
-
-        if len(coords) >= 4:
-            return Region(
-                int(coords[0]),
-                int(coords[1]),
-                int(coords[2]),
-                int(coords[3])
-            )
-
-        return None
-
+    @property
+    def height(self):
+        return self.array[3]
 
     def translate(self, coord_x, coord_y):
         """
@@ -110,7 +88,6 @@ class Region(_Coordinate):
             self.height
         )
 
-
     def inside(self, other):
         """
         Check this region is inside other region
@@ -121,8 +98,6 @@ class Region(_Coordinate):
         Returns:
             boolean
         """
-        if isinstance(other, Region):
-            other = other.to_array()
 
         coord_x_min = other[0]
         coord_x_max = other[0] + other[2]
@@ -131,7 +106,6 @@ class Region(_Coordinate):
 
         return coord_x_min <= self.coord_x and self.coord_x + self.width <= coord_x_max and \
                coord_y_min <= self.coord_y and self.coord_y + self.height <= coord_y_max
-
 
     def outside(self, other):
         """
@@ -143,8 +117,6 @@ class Region(_Coordinate):
         Returns:
             boolean
         """
-        if isinstance(other, Region):
-            other = other.to_array()
 
         coord_x_min = other[0]
         coord_x_max = other[0] + other[2]
@@ -155,7 +127,6 @@ class Region(_Coordinate):
                (self.coord_x > coord_x_max and self.coord_x + self.width > coord_x_max) or \
                (self.coord_y < coord_y_min and self.coord_y + self.height < coord_y_min) or \
                (self.coord_y > coord_y_max and self.coord_y + self.height > coord_y_max)
-
 
     def scale(self, scale=1):
         """
@@ -175,6 +146,7 @@ class Region(_Coordinate):
                 int(self.width * scale),
                 int(self.height * scale)
             )
+
         if isinstance(scale, tuple):
             return Region(
                 int(self.coord_x * scale[0]),
@@ -182,8 +154,8 @@ class Region(_Coordinate):
                 int(self.width * scale[0]),
                 int(self.height * scale[1])
             )
-        return self
 
+        return self
 
     def to_location(self):
         """
@@ -192,18 +164,7 @@ class Region(_Coordinate):
         Returns:
             Location
         """
-        return Location(self.coord_x, self.coord_y)
-
-
-    def to_array(self):
-        """
-        Convert to array
-
-        Returns:
-            tuple(int) - (coord_x, coord_y, width, height)
-        """
-        return self.coord_x, self.coord_y, self.width, self.height
-
+        return Location(*self.array)
 
 class Location(_Coordinate):
     """
@@ -211,18 +172,6 @@ class Location(_Coordinate):
         coord_x (int): Initial x coordinate (top-left).
         coord_y (int): Initial y coordinate (top-left).
     """
-
-    @staticmethod
-    def cast(coords):
-        """
-        Try convert coord to location
-        """
-        if isinstance(coords, Location):
-            return coords
-
-        if len(coords) >= 2:
-            return Location(int(coords[0]), int(coords[1]))
-        return None
 
     def translate(self, coord_x, coord_y):
         """
@@ -239,8 +188,7 @@ class Location(_Coordinate):
             self.coord_y + coord_y,
         )
 
-
-    def inside(self, region):
+    def inside(self, *region):
         """
         Check this location is inside other region
 
@@ -250,8 +198,6 @@ class Location(_Coordinate):
         Returns:
             boolean
         """
-        if isinstance(region, Region):
-            region = region.to_array()
 
         coord_x_min = region[0]
         coord_x_max = region[0] + region[2]
@@ -261,8 +207,7 @@ class Location(_Coordinate):
         return coord_x_min <= self.coord_x and self.coord_x <= coord_x_max and \
                coord_y_min <= self.coord_y and self.coord_y <= coord_y_max
 
-
-    def outside(self, region):
+    def outside(self, *region):
         """
         Check this location is outside other region
 
@@ -272,8 +217,6 @@ class Location(_Coordinate):
         Returns:
             boolean
         """
-        if isinstance(region, Region):
-            region = region.to_array()
 
         coord_x_min = region[0]
         coord_x_max = region[0] + region[2]
@@ -282,7 +225,6 @@ class Location(_Coordinate):
 
         return self.coord_x < coord_x_min or self.coord_x > coord_x_max or \
                self.coord_y < coord_y_min or self.coord_y > coord_y_max
-
 
     def scale(self, scale=1):
         """
@@ -300,13 +242,14 @@ class Location(_Coordinate):
                 int(self.coord_x * scale),
                 int(self.coord_y * scale),
             )
+
         if isinstance(scale, tuple):
             return Location(
                 int(self.coord_x * scale[0]),
                 int(self.coord_y * scale[1]),
             )
-        return self
 
+        return self
 
     def to_region(self, width, height):
         """
@@ -333,26 +276,20 @@ def as_coordinate(coords):
         return coords
 
     if len(coords) >= 4:
-        return Region.cast(coords)
+        return Region(*coords)
 
     if len(coords) >= 2:
-        return Location.cast(coords)
+        return Location(*coords)
 
     return None
 
 
-def _find_closest(coords, coord):
-    """
-    Utilizes a k-d tree to find the closest coordiante to the specified
-    list of coordinates.
+def filter_coord(filter_func, coords, return_list=False):
+    result_iter = filter(
+        lambda x: filter_func(as_coordinate(x)), list(coords)
+    )
 
-    Args:
-        coords (array): Array of coordinates to search.
-        coord (array): Array containing x and y of the coordinate.
+    if return_list:
+        return list(result_iter)
 
-    Returns:
-        array: An array containing the distance of the closest coordinate
-            in the list of coordinates to the specified coordinate as well the
-            index of where it is in the list of coordinates
-    """
-    return spatial.KDTree(coords).query(coord)
+    return result_iter
