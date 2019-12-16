@@ -7,9 +7,8 @@ from os import path
 import numpy
 import cv2
 
-from ubot.config import config
 from ubot.frame import Frame
-from ubot.frame_buffer import frame_buffer
+from ubot.frame_buffer import FrameBuffer
 
 
 class ADBFrameGrabberError(BaseException):
@@ -18,7 +17,7 @@ class ADBFrameGrabberError(BaseException):
 
 class ADBFrameGrabber:
 
-    def __init__(self, adb_client, width=1280, height=720, fps=30):
+    def __init__(self, adb_client, config, width=1280, height=720, fps=30):
 
         self.adb_client = adb_client
         self.created_time = time()
@@ -27,6 +26,7 @@ class ADBFrameGrabber:
         self.screen_height = height
 
         self.frame_time = 1 / fps
+        self.frame_buffer = FrameBuffer.get_instance()
 
         self.is_running = False
         self.worker = None
@@ -43,7 +43,7 @@ class ADBFrameGrabber:
                 cycle_start = time()
 
                 frame = self.grab_frame()
-                frame_buffer.add_frame(frame)
+                self.frame_buffer.add_frame(frame)
 
                 cycle_end = time()
 
@@ -73,7 +73,7 @@ class ADBFrameGrabber:
 
         if self.shared_dirs is None:
             frame_data = cv2.imdecode(
-                numpy.asarray(self.adb_client.screencap(), dtype=numpy.uint8),
+                numpy.asarray(self.adb_client.screencap, dtype=numpy.uint8),
                 0
             )
         else:
@@ -95,5 +95,5 @@ class ADBFrameGrabber:
             finally:
                 self.adb_client.shell(f"rm {dev_path}")
 
-        previous_frame = frame_buffer.previous_frame
+        previous_frame = self.frame_buffer.previous_frame
         return Frame(frame_data, previous_frame=previous_frame)

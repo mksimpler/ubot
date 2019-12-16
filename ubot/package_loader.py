@@ -5,7 +5,10 @@ from importlib import util
 from pathlib import Path
 
 import re
+import types
 
+from ubot import logger
+from ubot.config import config
 from ubot.sprite import Sprite
 
 
@@ -48,8 +51,19 @@ class Package:
         self.sprites = self._discorver_sprites()
         self.pkg_module = self._load_package_module(package_path)
 
-    def start(self, *args, **kwargs):
-        self.pkg_module.start(*args, **kwargs)
+        self.package = types.SimpleNamespace(
+            logger=logger,
+            config=config
+        )
+
+    def execute(self):
+        if callable(self.pkg_module.init):
+            self.pkg_module.init(self.package)
+
+        pkg_toolkit = _PackageToolkit(self, self.package.config)
+
+        if callable(self.pkg_module.start):
+            self.pkg_module.start(self.package, pkg_toolkit.toolkit)
 
     def _discorver_sprites(self):
         sprites = dict()
@@ -79,6 +93,27 @@ class Package:
 
     def _append_sys_path(self):
         sys.path.append(path.realpath(self.pkg_loc))
+
+
+class _PackageToolkit:
+
+    def __init__(self, package, config):
+        self.package = package
+        self.config = config
+
+        self.toolkit = types.SimpleNamespace(
+            bot_maker=self.gen_bot_maker()
+        )
+
+    def gen_bot_maker(self):
+
+        def _make_bot(bot_type, **kwargs):
+            from ubot.bots import make
+            return make(bot_type, self.config, self.package, **kwargs)
+
+        return types.SimpleNamespace(
+            make=_make_bot
+        )
 
 
 def load_package(package_name, package_path=None):

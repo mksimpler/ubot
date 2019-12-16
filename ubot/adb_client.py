@@ -13,11 +13,12 @@ class ADBServerState(Enum):
 class ADBClient:
 
     def __init__(self, host=None, port=None, serial=None):
-        self._state = ADBServerState.CLOSED
+        self.state = ADBServerState.CLOSED
+        self.device = None
+
         self._host = host if host is not None else "127.0.0.1"
         self._port = port if port is not None else 5037
         self._serial = serial
-        self._device = None
 
     def start_server(self):
         """
@@ -31,20 +32,20 @@ class ADBClient:
             if (self._serial or "") == "":
                 devices = client.devices()
                 if len(devices) == 1:
-                    self._device = devices[0]
+                    self.device = devices[0]
                 elif len(devices) > 1:
                     raise DeviceNotProvidedException()
                 else:
                     raise DeviceNotFoundException()
             else:
-                self._device = client.device(self._serial)
+                self.device = client.device(self._serial)
 
-            self._state = ADBServerState.OPENED
+            self.state = ADBServerState.OPENED
             logger.debug("ADB server started successfully.")
         except Exception as ex:
             _adb_kill_server()
             logger.debug("ADB server has failed to start.")
-            self._state = ADBServerState.CLOSED
+            self.state = ADBServerState.CLOSED
 
             raise ex
 
@@ -55,8 +56,8 @@ class ADBClient:
         _adb_kill_server()
         logger.debug("ADB server has been shut down.")
 
-        self._state = ADBServerState.CLOSED
-        self._device = None
+        self.state = ADBServerState.CLOSED
+        self.device = None
 
     def exec_out(self, command):
         """
@@ -73,8 +74,8 @@ class ADBClient:
         tuple
             A tuple containing stdoutdata and stderrdata
         """
-        if self._state == ADBServerState.OPENED:
-            cmd = [_ADB_COMMAND, self._device, 'exec-out'] + command.split(' ')
+        if self.state == ADBServerState.OPENED:
+            cmd = [_ADB_COMMAND, self.device, 'exec-out'] + command.split(' ')
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
             return process.communicate()[0]
 
@@ -88,8 +89,8 @@ class ADBClient:
             string
             Command to execute
         """
-        if self._state == ADBServerState.OPENED:
-            self._device.shell(command)
+        if self.state == ADBServerState.OPENED:
+            self.device.shell(command)
 
     @property
     def screencap(self):
@@ -101,8 +102,8 @@ class ADBClient:
         binary
             Screen image in binary data
         """
-        if self._state == ADBServerState.OPENED:
-            return self._device.screencap()
+        if self.state == ADBServerState.OPENED:
+            return self.device.screencap()
 
     @property
     def screensize(self):
@@ -114,8 +115,8 @@ class ADBClient:
         tuple(int, int)
             Size of device in order width, height
         """
-        if self._state == ADBServerState.OPENED:
-            screen = self._device.wm_size()
+        if self.state == ADBServerState.OPENED:
+            screen = self.device.wm_size()
             return screen.width, screen.height
 
 

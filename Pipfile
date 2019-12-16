@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 setuptools = "*"
 pyinstaller = "*"
+pytest = "*"
 
 [packages]
 kivy = "*"
@@ -15,6 +16,11 @@ pypiwin32 = "*"
 kivy-deps-sdl2 = "==0.1.22"
 kivy-deps-glew = "==0.1.12"
 kivy-deps-gstreamer = "==0.1.17"
+pure-python-adb = "==0.2.3.dev0"
+opencv-python = "*"
+numpy = "*"
+pillow = "*"
+scipy = "*"
 
 [requires]
 python_version = "3.7"

@@ -65,7 +65,7 @@ def _print(text, *args, color=None):
     if color is None:
         print(text)
     else:
-        print("{}{}{}".format(color, text, clr.END_TAB))
+        print(f"{color}{text}{END_TAB}")
 
 
 def message(text, *args):

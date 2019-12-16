@@ -1,8 +1,13 @@
 import sys
+from threading import Thread
+
+import argparse
+
 
 __version__ = "2019.12.12"
 
 valid_commands = [
+    "launch",
     "visual_debugger"
 ]
 
@@ -32,16 +37,66 @@ def executable_help():
     print("")
 
 
-def visual_debugger():
-    from ubot.visual_debugger.visual_debugger_app import VisualDebuggerApp
-    VisualDebuggerApp().run()
+def launch(package_name, *args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--visual-debugger", action='store_true')
+
+    args = parser.parse_args(args)
+
+    if args.visual_debugger:
+        visual_debugger(as_execute=False)
+
+    from ubot import package_loader
+
+    package = package_loader.load_package(package_name)
+    package.execute()
+
+
+def visual_debugger(as_execute=True):
+
+    def _spawn_app():
+        from ubot.visual_debugger_app import VisualDebuggerApp
+        VisualDebuggerApp().run()
+
+    if as_execute:
+        try:
+            from ubot.adb_client import ADBClient
+            adb_client = ADBClient()
+
+            adb_client.start_server()
+
+            width, height = adb_client.screensize
+
+            from ubot.config import config
+
+            from ubot.frame_buffer import FrameBuffer
+            FrameBuffer.setup(config)
+
+            from ubot.adb_frame_grabber import ADBFrameGrabber
+            frame_grabber = ADBFrameGrabber(adb_client, config, width=width, height=height)
+
+            frame_grabber.start()
+
+            return _spawn_app()
+        finally:
+            frame_grabber.stop()
+            adb_client.stop_server()
+
+    thread = Thread(
+        name="visual_debugger_app",
+        target=_spawn_app
+    )
+
+    thread.start()
 
 
 command_function_mapping = {
+    "launch": launch,
     "visual_debugger": visual_debugger
 }
 
 command_description_mapping = {
+    "launch": "Launch package",
     "visual_debugger": "Launch the visual debugger"
 }
 
