@@ -1,0 +1,3 @@
+[submodule "packages/azurlane"]
+	path = packages/azurlane
+	url = ./../azurlane
