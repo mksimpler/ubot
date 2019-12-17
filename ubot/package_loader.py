@@ -11,6 +11,8 @@ from ubot import logger
 from ubot.config import config
 from ubot.sprite import Sprite
 
+from ubot.settings import DEVELOPMENT_MODE_ACTIVE
+
 
 def load_module(module_name, module_path):
     """
@@ -58,12 +60,24 @@ class Package:
 
     def execute(self):
         if callable(self.pkg_module.init):
-            self.pkg_module.init(self.package)
+            try:
+                self.pkg_module.init(self.package)
+            except BaseException as ex:
+                if DEVELOPMENT_MODE_ACTIVE:
+                    raise ex
+                else:
+                    logger.error(str(ex))
 
         pkg_toolkit = _PackageToolkit(self, self.package.config)
 
         if callable(self.pkg_module.start):
-            self.pkg_module.start(self.package, pkg_toolkit.toolkit)
+            try:
+                self.pkg_module.start(self.package, pkg_toolkit.toolkit)
+            except BaseException as ex:
+                if DEVELOPMENT_MODE_ACTIVE:
+                    raise ex
+                else:
+                    logger.error(str(ex))
 
     def _discorver_sprites(self):
         sprites = dict()
@@ -102,7 +116,10 @@ class _PackageToolkit:
         self.config = config
 
         self.toolkit = types.SimpleNamespace(
-            bot_maker=self.gen_bot_maker()
+            bot_maker=self.gen_bot_maker(),
+            sprite_locator=self.gen_sprite_locator(),
+            ocr=self.gen_ocr(),
+            coords=self.gen_coords()
         )
 
     def gen_bot_maker(self):
@@ -113,6 +130,22 @@ class _PackageToolkit:
 
         return types.SimpleNamespace(
             make=_make_bot
+        )
+
+    def gen_sprite_locator(self):
+        from ubot.sprite_locator import SpriteLocator
+        return SpriteLocator()
+
+    def gen_ocr(self):
+        from ubot import ocr
+        return ocr
+
+    def gen_coords(self):
+        from ubot.coordinates import as_coordinate, filter_coord, filter_similar_coords
+        return types.SimpleNamespace(
+            as_coordinate=as_coordinate,
+            filter_coord=filter_coord,
+            filter_similar_coords=filter_similar_coords
         )
 
 

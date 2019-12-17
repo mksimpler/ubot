@@ -45,8 +45,9 @@ class _Coordinate:
                 in the list of coordinates to the specified coordinate as well the
                 index of where it is in the list of coordinates
         """
-        coords = [coord.array if isinstance(coord, _Coordinate) else coord for coord in coords]
-        return spatial.KDTree(coords).query(self.array)
+        coords = [coord.array[:2] if isinstance(coord, _Coordinate) else coord[:2] for coord in coords]
+        coord = self.array[:2]
+        return spatial.KDTree(coords).query(coord)
 
 
 class Region(_Coordinate):
@@ -88,7 +89,7 @@ class Region(_Coordinate):
             self.height
         )
 
-    def inside(self, other):
+    def inside(self, *region):
         """
         Check this region is inside other region
 
@@ -99,15 +100,15 @@ class Region(_Coordinate):
             boolean
         """
 
-        coord_x_min = other[0]
-        coord_x_max = other[0] + other[2]
-        coord_y_min = other[1]
-        coord_y_max = other[1] + other[3]
+        coord_x_min = region[0]
+        coord_x_max = region[0] + region[2]
+        coord_y_min = region[1]
+        coord_y_max = region[1] + region[3]
 
         return coord_x_min <= self.coord_x and self.coord_x + self.width <= coord_x_max and \
                coord_y_min <= self.coord_y and self.coord_y + self.height <= coord_y_max
 
-    def outside(self, other):
+    def outside(self, *region):
         """
         Check this region is outside other region
 
@@ -118,10 +119,10 @@ class Region(_Coordinate):
             boolean
         """
 
-        coord_x_min = other[0]
-        coord_x_max = other[0] + other[2]
-        coord_y_min = other[1]
-        coord_y_max = other[1] + other[3]
+        coord_x_min = region[0]
+        coord_x_max = region[0] + region[2]
+        coord_y_min = region[1]
+        coord_y_max = region[1] + region[3]
 
         return (self.coord_x < coord_x_min and self.coord_x + self.width < coord_x_min) or \
                (self.coord_x > coord_x_max and self.coord_x + self.width > coord_x_max) or \
@@ -293,3 +294,25 @@ def filter_coord(filter_func, coords, return_list=False):
         return list(result_iter)
 
     return result_iter
+
+
+def filter_similar_coords(coords, distance):
+    """
+    Filters out coordinates that are close to each other.
+
+    Args:
+        coords (array): An array containing the coordinates to be filtered.
+
+    Returns:
+        array: An array containing the filtered coordinates.
+    """
+
+    filtered_coords = []
+
+    if len(coords) > 0:
+        filtered_coords.append(coords[0])
+        for coord in coords:
+            if as_coordinate(coord).find_closest(filtered_coords)[0] > distance:
+                filtered_coords.append(coord)
+
+    return filtered_coords

@@ -1,9 +1,14 @@
 from time import sleep
 from random import uniform
+import inspect
 
 from ubot import logger
 from ubot.frame_buffer import FrameBuffer
 from ubot.frame_limiter import FrameLimiter
+
+from ubot.settings import SIMILARITY_DEFAULT
+from ubot.sprite_locator import SpriteLocator
+from ubot.ocr import detect_numbers
 
 
 ACTIVE_MODE = "active"
@@ -17,22 +22,56 @@ class BotError(BaseException):
 class Bot:
 
     def __init__(self, config, **kwargs):
-        run_mode = kwargs.get("run_mode", None)
         self.config = config
+
         self.run_flags = dict()
+
+        run_mode = kwargs.get("run_mode", None)
         self.run_mode = run_mode if run_mode in [ACTIVE_MODE, PASSIVE_MODE] else ACTIVE_MODE
 
-        self._frame_grabber_ins = None
+        self.frame_grabber = None
+
+        self.frame_buffer = None
         self._setup_frame_buffer()
 
+        self.sprite_locator = SpriteLocator()
+
     @property
-    def frame_grabber(self):
-        if self._frame_grabber_ins is None:
-            raise NotImplementedError()
+    def latest_frame(self):
+        if self.run_flags.get("in_frame_loop", False):
+            return self.frame_buffer.latest_frame
 
-        return self._frame_grabber_ins
+        frame = None
 
-    def wait(self, duration=None, flex=None):
+        if self.run_mode == ACTIVE_MODE:
+            frame = self.frame_grabber.grab_frame()
+            self.frame_buffer.add_frame(frame)
+
+        elif self.run_mode == PASSIVE_MODE:
+            self.frame_grabber.start()
+            frame = self.frame_buffer.latest_frame
+
+        return frame
+
+    def seen(self, *sprite_names, similarity=SIMILARITY_DEFAULT, best_match=True, dont_update_screen=False, return_dict=False, **kwargs):
+        if dont_update_screen:
+            frame = self.frame_buffer.previous_frame
+        else:
+            frame = self.latest_frame
+
+        sprite_names = sprite_names[0] if isinstance(sprite_names[0], (list, tuple)) else sprite_names
+        sprites = [self.pkg.sprites[sprite_name] for sprite_name in sprite_names]
+        results = [self.sprite_locator.locate(sprite, frame, similarity, return_best=best_match) for sprite in sprites]
+
+        if len(sprite_names) == 1:
+            return results[0]
+
+        if return_dict:
+            return dict(zip(sprite_names, results))
+
+        return results
+
+    def wait(self, duration=None, flex=None, **kwargs):
         """
         Method for putting the program to sleep for a random amount of time.
         If base is not provided, defaults to somewhere along with 0.4 and 0.7
@@ -52,6 +91,29 @@ class Bot:
             flex = duration if flex is None else flex
             sleep(uniform(duration, duration + flex))
 
+    def waitfor_image(self, image, fps=2, **kwargs):
+        def _handler(frame):
+            if self.seen(image, **kwargs):
+                return "break"
+
+        self.handle_frame(frame_handler=_handler, fps=fps)
+
+    def waitwhile_image(self, image, fps=2, **kwargs):
+        def _handler(frame):
+            if not self.seen(image, **kwargs):
+                return "break"
+
+        self.handle_frame(frame_handler=_handler, fps=fps)
+
+    def waitfor_frame_stable(self, fps=3, **kwargs):
+        def _handler(frame):
+            if len(FrameBuffer.get_instance().frames) >= 3:
+                frame, previous_frame = FrameBuffer.get_instance().frames[0], FrameBuffer.get_instance().frames[1]
+                if frame.similarity > SIMILARITY_DEFAULT and previous_frame.similarity > SIMILARITY_DEFAULT:
+                    return "break"
+
+        self.handle_frame(frame_handler=_handler, fps=fps)
+
     def exec_by_steps(self, steps, starting_step=None, data_hub=None):
         """
         Execute by provided steps
@@ -67,7 +129,7 @@ class Bot:
         data_hub
             dict - optional
         """
-        step_idx = _find_step_idx(steps, starting_step)
+        step_idx = _find_step(steps, starting_step)
 
         if step_idx is None:
             step_idx = 0
@@ -75,7 +137,7 @@ class Bot:
         if not isinstance(data_hub, dict):
             data_hub = dict()
 
-        previous_step_idx = None
+        previous_step = None
 
         while step_idx < len(steps):
             step = steps[step_idx]
@@ -105,7 +167,7 @@ class Bot:
             except Exception as ex:
                 raise ex
 
-            next_step_idx = _find_step_idx(steps, next_step_idx)
+            next_step_idx = _find_step(steps, next_step_idx)
             if next_step_idx is not None:
                 step_idx = next_step_idx
             else:
@@ -134,7 +196,7 @@ class Bot:
                 frame_limiter.start()
 
                 try:
-                    frame = FrameBuffer.get_instance().latest_frame
+                    frame = self.frame_buffer.latest_frame
                     signal = frame_handler(frame, **kwargs)
                 except Exception as ex:
                     raise ex
@@ -151,8 +213,13 @@ class Bot:
             self.run_flags["in_frame_loop"] = False
             self.frame_grabber.stop()
 
+    def detect_numbers(self, image, sprite_name_list, max_digits):
+        fonts = [self.pkg.sprites[sprite_name] for sprite_name in sprite_name_list]
+        return detect_numbers(image, fonts, max_digits)
+
     def _setup_frame_buffer(self):
         FrameBuffer.setup(self.config)
+        self.frame_buffer = FrameBuffer.get_instance()
 
 
 def _find_step(steps, value):
@@ -179,7 +246,7 @@ def _find_step(steps, value):
             return default_steps[value]
 
         if value != "":
-            found_steps = [i for i, s in enumerate(steps) if s.name == value]
+            found_steps = [i for i, s in enumerate(steps) if s["name"] == value]
             if len(found_steps) == 0:
                 raise ValueError(f"Step '{value}' not found.")
 

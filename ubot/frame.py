@@ -11,12 +11,13 @@ class Frame:
         if self.previous_frame is not None:
             self._calc_difference()
 
-        self.similarity = similarity
+        if similarity is not None:
+            self.similarity = similarity
 
         self.timestamp = time()
 
     def at_region(self, x, y, w, h):
-        return Frame(self.image_data[x:x+w, y:y+h])
+        return Frame(self.image_data[y:y+h, x:x+w])
 
     def to_file(self, filepath):
         cv2.imwrite(filepath, self.image_data)

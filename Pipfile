@@ -21,6 +21,7 @@ opencv-python = "*"
 numpy = "*"
 pillow = "*"
 scipy = "*"
+imutils = "*"
 
 [requires]
 python_version = "3.7"

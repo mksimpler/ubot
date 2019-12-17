@@ -1,7 +1,7 @@
 import numpy
 import cv2
 
-from ubot.coordinates import as_coordinate
+from ubot.coordinates import as_coordinate, filter_similar_coords
 
 
 class SpriteLocator:
@@ -49,7 +49,7 @@ class SpriteLocator:
 
             regions = []
 
-            for location in zip(*locations[::-1]):
+            for location in zip(*match_locations[::-1]):
 
                 region = (
                     int(location[0]),
@@ -59,27 +59,6 @@ class SpriteLocator:
                 )
 
                 regions.append(region)
+                regions = filter_similar_coords(regions, 40)
 
             return regions
-
-
-def _filter_similar_coords(coords, distance):
-    """
-    Filters out coordinates that are close to each other.
-
-    Args:
-        coords (array): An array containing the coordinates to be filtered.
-
-    Returns:
-        array: An array containing the filtered coordinates.
-    """
-
-    filtered_coords = []
-
-    if len(coords) > 0:
-        filtered_coords.append(coords[0])
-        for coord in coords:
-            if as_coordinate(coord).find_closest(filtered_coords)[0] > distance:
-                filtered_coords.append(coord)
-
-    return filtered_coords

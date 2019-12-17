@@ -3,12 +3,9 @@ from ubot.settings import SIMILARITY_DEFAULT
 
 from ubot.adb_client import ADBClient
 from ubot.adb_input_controller import ADBInputController
-from ubot.sprite_locator import SpriteLocator
-
-from ubot.frame_buffer import FrameBuffer
-from ubot.frame_grabbers import ADBFrameGrabber
 
 from ubot.package_loader import Package
+from ubot.frame_grabbers import ADBFrameGrabber
 
 
 class ADBBotError(BaseException):
@@ -26,30 +23,25 @@ class ADBBot(Bot):
         self.pkg = package
         self.adb_client = ADBClient()
         self.input_controller = ADBInputController(self.adb_client)
-        self.sprite_locator = SpriteLocator()
-
 
     def __enter__(self):
         self.adb_client.start_server()
-        self._setup_frame_grabber()
+
+        width, height = self.adb_client.screensize
+        self.frame_grabber = ADBFrameGrabber(self.adb_client, self.config, width, height)
+
         return self
 
     def __exit__(self, *args, **kwargs):
         self.adb_client.stop_server()
 
-    def seen(self, sprite_name, similarity=None, return_list=False):
-        frame = self._retrieve_latest_frame()
-        sprite = self.pkg.sprites[sprite_name]
-        return self.sprite_locator.locate(sprite, frame, similarity, return_best=not return_list)
-
-    def tap(self, sprite_or_coord, similarity=None, then_wait=0.7):
+    def tap(self, sprite_or_coord, similarity=None, then_wait=0.7, **kwargs):
 
         if isinstance(sprite_or_coord, str):
-            frame = self._retrieve_latest_frame()
             sprite = self.pkg.sprites[sprite_or_coord]
             similarity = similarity or SIMILARITY_DEFAULT
 
-            region = self.sprite_locator.locate(sprite, frame, similarity, return_best=True)
+            region = self.sprite_locator.locate(sprite, self.latest_frame, similarity, return_best=True)
 
             if region is not None:
                 self.input_controller.tap_randomly(*region)
@@ -57,9 +49,27 @@ class ADBBot(Bot):
                 raise ADBBotError(f"Sprite '{sprite_or_coord}' not found on screen")
 
         else:
-            self.input_controller.tap_randomly(*coords)
+            self.input_controller.tap_randomly(*sprite_or_coord)
 
         self.wait(then_wait or 0.7)
+
+    def tap_ifseen(self, sprite_name, **kwargs):
+        """
+        Finds the image on the screen and touches it if it exists
+
+        Args:
+            image (string): Name of the image.
+            similarity (float, optional): Defaults to DEFAULT_SIMILARITY.
+                Percentage in similarity that the image should at least match.
+
+        Returns:
+            bool: True if the image was found and touched, false otherwise
+        """
+        try:
+            self.tap(str(sprite_name), **kwargs)
+            return True
+        except ADBBotError:
+            return False
 
     def swipe(self, location_s, location_e, duration, **kwargs):
         """
@@ -77,26 +87,18 @@ class ADBBot(Bot):
     def text(self):
         pass
 
-    def at_region(self, x, y, w, h):
-        return self._retrieve_latest_frame.at_region(x, y, w, h)
+    def waitfor_tap(self, image, **kwargs):
+        """
+        Wait for image appears on screen and tap it.
 
-    def _setup_frame_grabber(self):
-        width, height = self.adb_client.screensize
-        self._frame_grabber_ins = ADBFrameGrabber(self.adb_client, self.config, width, height)
+        Parameter
+        ---------
+        image
+            string
+            Image's name to wait for (and tap)
 
-    def _retrieve_latest_frame(self):
-        frame_buffer = FrameBuffer.get_instance()
-
-        if self.run_flags.get("in_frame_loop", False):
-            return frame_buffer.latest_frame
-
-        frame = None
-
-        if self.run_mode == ACTIVE_MODE:
-            frame = self.frame_grabber.grab_frame()
-
-        elif self.run_mode == PASSIVE_MODE:
-            self.frame_grabber.start()
-            frame = frame_buffer.latest_frame
-
-        return frame
+        **kwarg
+            See also (self.see and self.tap)
+        """
+        self.waitfor_image(image, **kwargs)
+        self.tap(image, **kwargs)
