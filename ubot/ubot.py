@@ -91,11 +91,13 @@ def visual_debugger(as_execute=True):
 
 
 command_function_mapping = {
+    "help": executable_help,
     "launch": launch,
     "visual_debugger": visual_debugger
 }
 
 command_description_mapping = {
+    "help": "Print this to console",
     "launch": "Launch package",
     "visual_debugger": "Launch the visual debugger"
 }
