@@ -29,7 +29,7 @@ def load_module(module_name, module_path):
     (_, ext) = path.splitext(module_path)
 
     if ext != ".py":
-        module_filepath = path.join(module_path, "__init__.py")
+        module_filepath = path.join(module_path, "__main__.py")
 
     spec = util.spec_from_file_location(module_name, module_filepath)
     module = util.module_from_spec(spec)
@@ -100,7 +100,7 @@ class Package:
         module_name = 'packages.{}'.format(self.name)
         module_path = package_path if package_path is not None else 'packages/{}'.format(self.name)
 
-        if len(glob(module_path + '/__init__.py')) == 0:
+        if len(glob(module_path + '/__main__.py')) == 0:
             raise PackageError("Invalid packages")
 
         return load_module(module_name, module_path)

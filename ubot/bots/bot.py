@@ -105,15 +105,6 @@ class Bot:
 
         self.handle_frame(frame_handler=_handler, fps=fps)
 
-    def waitfor_frame_stable(self, fps=3, **kwargs):
-        def _handler(frame):
-            if len(FrameBuffer.get_instance().frames) >= 3:
-                frame, previous_frame = FrameBuffer.get_instance().frames[0], FrameBuffer.get_instance().frames[1]
-                if frame.similarity > SIMILARITY_DEFAULT and previous_frame.similarity > SIMILARITY_DEFAULT:
-                    return "break"
-
-        self.handle_frame(frame_handler=_handler, fps=fps)
-
     def exec_by_steps(self, steps, starting_step=None, data_hub=None):
         """
         Execute by provided steps
