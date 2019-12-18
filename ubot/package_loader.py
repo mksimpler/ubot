@@ -27,26 +27,25 @@ class Package:
 
         self.sprites = self._discorver_sprites()
 
-        self.package = types.SimpleNamespace(
-            logger=logger,
-            config=config
-        )
+        self.logger = logger
+
+        self.config = config
 
     def execute(self):
         if callable(self.package_module.init):
             try:
-                self.package_module.init(self.package)
+                self.package_module.init(self)
             except BaseException as ex:
                 if DEVELOPMENT_MODE_ACTIVE:
                     raise ex
                 else:
                     logger.error(str(ex))
 
-        pkg_toolkit = _PackageToolkit(self, self.package.config)
+        package_toolkit = PackageToolkit(self, self.config)
 
         if callable(self.package_module.start):
             try:
-                self.package_module.start(self.package, pkg_toolkit.toolkit)
+                self.package_module.start(self, package_toolkit.toolkit)
             except BaseException as ex:
                 if DEVELOPMENT_MODE_ACTIVE:
                     raise ex
@@ -71,7 +70,7 @@ class Package:
         return sprites
 
 
-class _PackageToolkit:
+class PackageToolkit:
 
     def __init__(self, package, config):
         self.package = package
