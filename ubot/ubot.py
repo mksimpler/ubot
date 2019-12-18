@@ -7,6 +7,7 @@ import argparse
 __version__ = "2019.12.12"
 
 valid_commands = [
+    "help",
     "launch",
     "visual_debugger"
 ]
