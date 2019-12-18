@@ -14,44 +14,18 @@ from ubot.sprite import Sprite
 from ubot.settings import DEVELOPMENT_MODE_ACTIVE
 
 
-def load_module(module_name, module_path):
-    """
-    Load module from given path
-
-    Args:
-        module_name: string
-        module_path: string
-
-    Return:
-        module
-    """
-    module_filepath = module_path
-    (_, ext) = path.splitext(module_path)
-
-    if ext != ".py":
-        module_filepath = path.join(module_path, "__main__.py")
-
-    spec = util.spec_from_file_location(module_name, module_filepath)
-    module = util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    return module
-
-
 class PackageError(BaseException):
     pass
 
 
 class Package:
 
-    def __init__(self, package_name, package_path=None):
+    def __init__(self, package_name, package_path, module):
         self.name = package_name
-
-        self.pkg_loc = f"packages/{self.name}" if package_path is None else package_path
-        self._append_sys_path()
+        self.package_path = package_path
+        self.package_module = module
 
         self.sprites = self._discorver_sprites()
-        self.pkg_module = self._load_package_module(package_path)
 
         self.package = types.SimpleNamespace(
             logger=logger,
@@ -59,9 +33,9 @@ class Package:
         )
 
     def execute(self):
-        if callable(self.pkg_module.init):
+        if callable(self.package_module.init):
             try:
-                self.pkg_module.init(self.package)
+                self.package_module.init(self.package)
             except BaseException as ex:
                 if DEVELOPMENT_MODE_ACTIVE:
                     raise ex
@@ -70,9 +44,9 @@ class Package:
 
         pkg_toolkit = _PackageToolkit(self, self.package.config)
 
-        if callable(self.pkg_module.start):
+        if callable(self.package_module.start):
             try:
-                self.pkg_module.start(self.package, pkg_toolkit.toolkit)
+                self.package_module.start(self.package, pkg_toolkit.toolkit)
             except BaseException as ex:
                 if DEVELOPMENT_MODE_ACTIVE:
                     raise ex
@@ -82,7 +56,7 @@ class Package:
     def _discorver_sprites(self):
         sprites = dict()
 
-        sprites_path = path.join(self.pkg_loc, "sprites")
+        sprites_path = path.join(self.package_path, "sprites")
         sprites_path_parts = re.split(r"[\\/]", sprites_path)
 
         for sprite_path in Path(sprites_path).rglob("*.png"):
@@ -95,18 +69,6 @@ class Package:
                 sprites[sprite_name].append_image_data(sprite_image_data)
 
         return sprites
-
-    def _load_package_module(self, package_path):
-        module_name = 'packages.{}'.format(self.name)
-        module_path = package_path if package_path is not None else 'packages/{}'.format(self.name)
-
-        if len(glob(module_path + '/__main__.py')) == 0:
-            raise PackageError("Invalid packages")
-
-        return load_module(module_name, module_path)
-
-    def _append_sys_path(self):
-        sys.path.append(path.realpath(self.pkg_loc))
 
 
 class _PackageToolkit:
@@ -149,7 +111,35 @@ class _PackageToolkit:
         )
 
 
-def load_package(package_name, package_path=None):
+def load_module(module_name, module_path):
+    """
+    Load module from given path
+
+    Args:
+        module_name: string
+        module_path: string
+
+    Return:
+        module
+    """
+    if Path(module_path).suffix != ".py":
+
+        module_tmp_path = path.join(module_path, "__init__.py")
+
+        if Path(module_tmp_path).is_file():
+            module_path = str(module_tmp_path.resolve())
+
+        else:
+            raise PackageError(f"Cannot import module '{module_path}'")
+
+    spec = util.spec_from_file_location(module_name, module_path)
+    module = util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return module
+
+
+def load_package(package_path):
     """
     Load package from given name
 
@@ -159,4 +149,33 @@ def load_package(package_name, package_path=None):
     Return:
         module
     """
-    return Package(package_name, package_path=package_path)
+
+    package_entries = [
+        Path(package_path),
+        Path(path.join(package_path, "__main__.py")),
+        Path(f"./packages/{package_path}/__main__.py")
+    ]
+
+    package_name = None
+    package_path = None
+    package_filepath = None
+
+    for package_entry in package_entries:
+        if package_entry.is_file() and package_entry.name == "__main__.py":
+
+            package_entry = package_entry.resolve()
+
+            package_name = package_entry.parts[-2]
+            package_path = path.join(*package_entry.parts[:-1])
+            package_filepath = str(package_entry)
+
+            break
+    else:
+        raise PackageError(f"Package '{package_path}' not found")
+
+    if package_path not in sys.path:
+        sys.path.append(package_path)
+
+    module = load_module(package_name, package_filepath)
+
+    return Package(package_name, package_path, module)

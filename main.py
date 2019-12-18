@@ -37,7 +37,7 @@ def executable_help():
     print("")
 
 
-def launch(package_name, *args):
+def launch(package_path, *args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--visual-debugger", action='store_true')
 
@@ -48,7 +48,7 @@ def launch(package_name, *args):
 
     from ubot import package_loader
 
-    package = package_loader.load_package(package_name)
+    package = package_loader.load_package(package_path)
     package.execute()
 
 
