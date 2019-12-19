@@ -55,11 +55,10 @@ class Package:
     def _discorver_sprites(self):
         sprites = dict()
 
-        sprites_path = path.join(self.package_path, "sprites")
-        sprites_path_parts = re.split(r"[\\/]", sprites_path)
+        sprites_path = Path(path.join(self.package_path, "sprites"))
 
-        for sprite_path in Path(sprites_path).rglob("*.png"):
-            sprite_name = "/".join([p for p in sprite_path.parts if p not in sprites_path_parts]).lower().replace(".png", "")
+        for sprite_path in sprites_path.rglob("*.png"):
+            sprite_name = "/".join([p for p in sprite_path.parts if p not in sprites_path.parts]).lower().replace(".png", "")
             sprite = Sprite.from_path(str(sprite_path), name=sprite_name)
 
             if sprite_name not in sprites:

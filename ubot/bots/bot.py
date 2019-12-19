@@ -91,19 +91,18 @@ class Bot:
             flex = duration if flex is None else flex
             sleep(uniform(duration, duration + flex))
 
-    def waitfor_image(self, image, fps=2, **kwargs):
-        def _handler(frame):
-            if self.seen(image, **kwargs):
+    def wait_while(self, condition_handler, fps=2, *args, **kwargs):
+        def _frame_handler(frame, *args, **kwargs):
+
+            args, kwargs = _fill_parameters(condition_handler, args, kwargs, params=dict(
+                frame=frame,
+                bot=self
+            ))
+
+            if not condition_handler(*args, **kwargs):
                 return "break"
 
-        self.handle_frame(frame_handler=_handler, fps=fps)
-
-    def waitwhile_image(self, image, fps=2, **kwargs):
-        def _handler(frame):
-            if not self.seen(image, **kwargs):
-                return "break"
-
-        self.handle_frame(frame_handler=_handler, fps=fps)
+        self.handle_frame(frame_handler=_frame_handler, fps=fps, args=args, kwargs=kwargs)
 
     def exec_by_steps(self, steps, starting_step=None, data_hub=None):
         """
@@ -168,7 +167,7 @@ class Bot:
 
         return data_hub
 
-    def handle_frame(self, frame_handler=None, fps=30, **kwargs):
+    def handle_frame(self, frame_handler=None, fps=30, args=tuple(), kwargs=dict()):
 
         if not callable(frame_handler):
             if hasattr(frame_handler, "handle_frame") and callable(frame_handler.handle_frame):
@@ -188,7 +187,7 @@ class Bot:
 
                 try:
                     frame = self.frame_buffer.latest_frame
-                    signal = frame_handler(frame, **kwargs)
+                    signal = frame_handler(frame, *args, **kwargs)
                 except Exception as ex:
                     raise ex
 
@@ -249,7 +248,7 @@ def _find_step(steps, value):
     return None
 
 
-def _fill_parameters(handler, args, kwargs, params=None):
+def _fill_parameters(handler, args, kwargs, params=dict()):
     # todo: rewrite this stupid buggy method
     params_dict = inspect.signature(handler).parameters
 

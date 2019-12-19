@@ -86,19 +86,3 @@ class ADBBot(Bot):
 
     def text(self):
         pass
-
-    def waitfor_tap(self, image, **kwargs):
-        """
-        Wait for image appears on screen and tap it.
-
-        Parameter
-        ---------
-        image
-            string
-            Image's name to wait for (and tap)
-
-        **kwarg
-            See also (self.see and self.tap)
-        """
-        self.waitfor_image(image, **kwargs)
-        self.tap(image, **kwargs)
