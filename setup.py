@@ -1,22 +1,23 @@
-from setuptools import setup, find_packages
+from setuptools import setup
+from ubot.ubot import __version__
 
 packages = [
     "ubot"
 ]
 
-package_data = {
-    "config": [
+data_files = [
+    ("config", [
         "config/config.ini",
         "config/config.ldplayer.ini",
         "config/config.leapdroid.ini"
-    ]
-}
+    ])
+]
 
 setup(
     name="ubot",
+    version=__version__,
     packages=packages,
-    package_data=package_data,
-    include_package_data=True,
+    data_files=data_files,
     entry_points={
         'console_scripts': ['ubot = ubot.ubot:execute']
     },

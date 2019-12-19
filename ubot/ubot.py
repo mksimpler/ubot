@@ -4,7 +4,7 @@ from threading import Thread
 import argparse
 
 
-__version__ = "2019.12.12"
+__version__ = "0.0.1-dev"
 
 valid_commands = [
     "help",
