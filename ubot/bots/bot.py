@@ -36,8 +36,7 @@ class Bot:
 
         self.sprite_locator = SpriteLocator()
 
-    @property
-    def latest_frame(self):
+    def retrieve_latest_frame(self):
         if self.run_flags.get("in_frame_loop", False):
             return self.frame_buffer.latest_frame
 
@@ -57,7 +56,7 @@ class Bot:
         if dont_update_screen:
             frame = self.frame_buffer.previous_frame
         else:
-            frame = self.latest_frame
+            frame = self.retrieve_latest_frame()
 
         sprite_names = sprite_names[0] if isinstance(sprite_names[0], (list, tuple)) else sprite_names
         sprites = [self.pkg.sprites[sprite_name] for sprite_name in sprite_names]
@@ -92,7 +91,11 @@ class Bot:
             sleep(uniform(duration, duration + flex))
 
     def wait_while(self, condition_handler, fps=2, *args, **kwargs):
-        def _frame_handler(frame, *args, **kwargs):
+
+        def _frame_handler(frame):
+
+            nonlocal args
+            nonlocal kwargs
 
             args, kwargs = _fill_parameters(condition_handler, args, kwargs, params=dict(
                 frame=frame,
@@ -102,7 +105,7 @@ class Bot:
             if not condition_handler(*args, **kwargs):
                 return "break"
 
-        self.handle_frame(frame_handler=_frame_handler, fps=fps, args=args, kwargs=kwargs)
+        self.handle_frame(frame_handler=_frame_handler, fps=fps)
 
     def exec_by_steps(self, steps, starting_step=None, data_hub=None):
         """
@@ -175,33 +178,31 @@ class Bot:
             else:
                 raise BotError("frame_handler must be function or frame-agent like instance")
 
-        try:
-            frame_limiter = FrameLimiter(fps=fps)
+        frame_limiter = FrameLimiter(fps=fps)
 
-            self.frame_grabber.start()
+        while True:
+            frame_limiter.start()
+
+            frame = self.retrieve_latest_frame()
 
             self.run_flags["in_frame_loop"] = True
 
-            while True:
-                frame_limiter.start()
+            try:
+                signal = frame_handler(frame, *args, **kwargs)
 
-                try:
-                    frame = self.frame_buffer.latest_frame
-                    signal = frame_handler(frame, *args, **kwargs)
-                except Exception as ex:
-                    raise ex
+            except Exception as ex:
+                raise ex
 
-                frame_limiter.stop_and_delay()
+            finally:
+                self.run_flags["in_frame_loop"] = False
 
-                if signal == "break":
-                    break
+            frame_limiter.stop_and_delay()
 
-                if signal == "continue":
-                    continue
+            if signal == "break":
+                break
 
-        finally:
-            self.run_flags["in_frame_loop"] = False
-            self.frame_grabber.stop()
+            if signal == "continue":
+                continue
 
     def detect_numbers(self, image, sprite_name_list, max_digits):
         fonts = [self.pkg.sprites[sprite_name] for sprite_name in sprite_name_list]

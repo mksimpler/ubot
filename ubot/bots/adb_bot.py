@@ -41,7 +41,7 @@ class ADBBot(Bot):
             sprite = self.pkg.sprites[sprite_or_coord]
             similarity = similarity or SIMILARITY_DEFAULT
 
-            region = self.sprite_locator.locate(sprite, self.latest_frame, similarity, return_best=True)
+            region = self.sprite_locator.locate(sprite, self.retrieve_latest_frame(), similarity, return_best=True)
 
             if region is not None:
                 self.input_controller.tap_randomly(*region)
@@ -52,24 +52,6 @@ class ADBBot(Bot):
             self.input_controller.tap_randomly(*sprite_or_coord)
 
         self.wait(then_wait or 0.7)
-
-    def tap_ifseen(self, sprite_name, **kwargs):
-        """
-        Finds the image on the screen and touches it if it exists
-
-        Args:
-            image (string): Name of the image.
-            similarity (float, optional): Defaults to DEFAULT_SIMILARITY.
-                Percentage in similarity that the image should at least match.
-
-        Returns:
-            bool: True if the image was found and touched, false otherwise
-        """
-        try:
-            self.tap(str(sprite_name), **kwargs)
-            return True
-        except ADBBotError:
-            return False
 
     def swipe(self, location_s, location_e, duration, **kwargs):
         """

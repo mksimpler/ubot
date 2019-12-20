@@ -9,6 +9,7 @@ import cv2
 
 from ubot.frame import Frame
 from ubot.frame_buffer import FrameBuffer
+from ubot.frame_limiter import FrameLimiter
 
 
 class ADBFrameGrabberError(BaseException):
@@ -25,7 +26,7 @@ class ADBFrameGrabber:
         self.screen_width = width
         self.screen_height = height
 
-        self.frame_time = 1 / fps
+        self.frame_limiter = FrameLimiter(fps=fps)
         self.frame_buffer = FrameBuffer.get_instance()
 
         self.is_running = False
@@ -40,20 +41,12 @@ class ADBFrameGrabber:
 
         def _worker():
             while self.is_running:
-                cycle_start = time()
+                self.frame_limiter.start()
 
                 frame = self.grab_frame()
                 self.frame_buffer.add_frame(frame)
 
-                cycle_end = time()
-
-                cycle_duration = (cycle_end - cycle_start)
-                cycle_duration -= int(cycle_duration)
-
-                frame_time_left = self.frame_time - cycle_duration
-
-                if frame_time_left > 0:
-                    sleep(frame_time_left)
+                self.frame_limiter.stop_and_delay()
 
         self.is_running = True
 
@@ -65,8 +58,9 @@ class ADBFrameGrabber:
         self.worker.start()
 
     def stop(self):
-        self.is_running = False
-        self.worker.join()
+        if self.is_running:
+            self.is_running = False
+            self.worker.join()
 
     def grab_frame(self):
         frame_data = None
