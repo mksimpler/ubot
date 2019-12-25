@@ -1,4 +1,4 @@
-from time import sleep
+from time import sleep, time
 from random import uniform
 import inspect
 
@@ -6,6 +6,7 @@ from ubot import logger
 from ubot.frame_buffer import FrameBuffer
 from ubot.frame_limiter import FrameLimiter
 
+from ubot.taskmanager import TaskManager
 from ubot.settings import SIMILARITY_DEFAULT
 from ubot.sprite_locator import SpriteLocator
 from ubot.ocr import detect_numbers
@@ -38,6 +39,10 @@ class Bot:
 
     def retrieve_latest_frame(self):
         if self.run_flags.get("in_frame_loop", False):
+            return self.frame_buffer.latest_frame
+
+        task = TaskManager.current_task()
+        if task is not None and task.name in self.run_flags.get("bg_tasks", []):
             return self.frame_buffer.latest_frame
 
         frame = None
@@ -90,7 +95,7 @@ class Bot:
             flex = duration if flex is None else flex
             sleep(uniform(duration, duration + flex))
 
-    def wait_while(self, condition_handler, fps=2, *args, **kwargs):
+    def wait_while(self, condition_handler, args=tuple(), kwargs=dict(), **other_kwargs):
 
         def _frame_handler(frame):
 
@@ -105,7 +110,7 @@ class Bot:
             if not condition_handler(*args, **kwargs):
                 return "break"
 
-        self.handle_frame(frame_handler=_frame_handler, fps=fps)
+        return self.handle_frame(frame_handler=_frame_handler, **other_kwargs)
 
     def exec_by_steps(self, steps, starting_step=None, data_hub=None):
         """
@@ -170,7 +175,7 @@ class Bot:
 
         return data_hub
 
-    def handle_frame(self, frame_handler=None, fps=30, args=tuple(), kwargs=dict()):
+    def handle_frame(self, frame_handler=None, args=tuple(), kwargs=dict(), fps=30, timeout=None):
 
         if not callable(frame_handler):
             if hasattr(frame_handler, "handle_frame") and callable(frame_handler.handle_frame):
@@ -196,6 +201,10 @@ class Bot:
             finally:
                 self.run_flags["in_frame_loop"] = False
 
+            if timeout is not None:
+                if frame_limiter.runtime >= timeout:
+                    return "timeout"
+
             frame_limiter.stop_and_delay()
 
             if signal == "break":
@@ -203,6 +212,25 @@ class Bot:
 
             if signal == "continue":
                 continue
+
+        return ""
+
+    def background_task(self, name, target, *args, **kwargs):
+        task = TaskManager.create_task(
+            name=name,
+            target=target,
+            args=args,
+            kwargs=kwargs)
+
+        if self.run_flags.get("bg_tasks", None) is None:
+            bg_tasks = []
+            self.run_flags["bg_tasks"] = bg_tasks
+
+        self.run_flags["bg_tasks"].append(name)
+
+        task.start()
+
+        return task
 
     def detect_numbers(self, image, sprite_name_list, max_digits):
         fonts = [self.pkg.sprites[sprite_name] for sprite_name in sprite_name_list]

@@ -27,7 +27,7 @@ class SpriteLocator:
         match_locations = cv2.matchTemplate(frame, sprite.image_data, cv2.TM_CCOEFF_NORMED)
         _, width, height = sprite.image_data.shape[::-1]
 
-        if return_best:
+        if return_best or threshold is None:
             _, similarity, _, location = cv2.minMaxLoc(match_locations)
 
             region = (
@@ -40,12 +40,11 @@ class SpriteLocator:
             if isinstance(threshold, (int, float)):
                 return None if similarity < threshold else region
 
-            return similarity, region
+            return region
 
         else:
 
-            if isinstance(threshold, (int, float)):
-                match_locations = numpy.where(match_locations >= threshold)
+            match_locations = numpy.where(match_locations >= threshold)
 
             regions = []
 

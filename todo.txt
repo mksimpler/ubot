@@ -1,1 +1,1 @@
-check waitfor_frame_stable
+add --force (to wait for) in method tap (adb bot)

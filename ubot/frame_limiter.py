@@ -13,11 +13,15 @@ class FrameLimiter:
         self.started_at = datetime.utcnow()
 
     def stop_and_delay(self):
-        duration = (datetime.utcnow() - self.started_at).microseconds / 1000000
+        duration = self.runtime
         remaining_frame_time = self.frame_time - duration
 
         if remaining_frame_time > 0:
             time.sleep(remaining_frame_time)
 
-    def benchmark(self):
-        pass
+    @property
+    def runtime(self):
+        if self.started_at is None:
+            return -1
+
+        return (datetime.utcnow() - self.started_at).microseconds / 1000000

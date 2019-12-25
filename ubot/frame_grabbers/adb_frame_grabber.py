@@ -7,6 +7,7 @@ from os import path
 import numpy
 import cv2
 
+from ubot.taskmanager import TaskManager
 from ubot.frame import Frame
 from ubot.frame_buffer import FrameBuffer
 from ubot.frame_limiter import FrameLimiter
@@ -30,7 +31,6 @@ class ADBFrameGrabber:
         self.frame_buffer = FrameBuffer.get_instance()
 
         self.is_running = False
-        self.worker = None
 
         self.shared_dirs = config["Emulator"]["SharedFolders"]
 
@@ -39,8 +39,8 @@ class ADBFrameGrabber:
         if self.is_running:
             return
 
-        def _worker():
-            while self.is_running:
+        def _worker(task):
+            while task.alive:
                 self.frame_limiter.start()
 
                 frame = self.grab_frame()
@@ -48,19 +48,16 @@ class ADBFrameGrabber:
 
                 self.frame_limiter.stop_and_delay()
 
+        worker = TaskManager.create_task("frame-grabber-worker", target=_worker)
+
+        worker.start()
+
         self.is_running = True
-
-        self.worker = Thread(
-            name="frame-grabber-worker",
-            target=_worker
-        )
-
-        self.worker.start()
 
     def stop(self):
         if self.is_running:
             self.is_running = False
-            self.worker.join()
+            TaskManager.stop_task("frame-grabber-worker", join=True)
 
     def grab_frame(self):
         frame_data = None
