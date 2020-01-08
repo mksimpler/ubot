@@ -1,5 +1,6 @@
 import threading
 import types
+from queue import Queue
 
 
 class Task(threading.Thread):
@@ -12,6 +13,9 @@ class Task(threading.Thread):
 
         super().__init__(**kwargs)
         self.stop_event = threading.Event()
+
+        self.localock = threading.Lock()
+        self.channel = Channel()
 
     def stop(self):
         self.stop_event.set()
@@ -66,3 +70,37 @@ class TaskManager:
     def current_task(cls):
         name = threading.current_thread().name
         return cls.get_task(name)
+
+
+class Channel:
+
+    def __init__(self, size=1):
+        self._receive_ent = threading.Event()
+        self._queue = Queue(maxsize=size)
+
+
+    @property
+    def full(self):
+        return self._queue.full()
+
+
+    @property
+    def empty(self):
+        return self._queue.empty()
+
+
+    def send(self, data):
+        self._queue.put(data, block=True)
+
+        if self._receive_ent.is_set():
+            self._receive_ent.clear()
+
+        if self.full:
+            self._receive_ent.wait()
+
+
+    def receive(self):
+        data = self._queue.get(block=True)
+        self._receive_ent.set()
+
+        return data

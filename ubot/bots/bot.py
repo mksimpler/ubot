@@ -57,15 +57,17 @@ class Bot:
 
         return frame
 
-    def seen(self, *sprite_names, similarity=SIMILARITY_DEFAULT, best_match=True, dont_update_screen=False, return_dict=False, **kwargs):
-        if dont_update_screen:
-            frame = self.frame_buffer.previous_frame
-        else:
+    def seen(self, sprite_name_or_list, frame=None, threshold=SIMILARITY_DEFAULT, return_dict=False, **options):
+        if frame is None:
             frame = self.retrieve_latest_frame()
 
-        sprite_names = sprite_names[0] if isinstance(sprite_names[0], (list, tuple)) else sprite_names
+        if isinstance(sprite_name_or_list, (list, tuple)):
+            sprite_names = sprite_name_or_list
+        else:
+            sprite_names = [sprite_name_or_list]
+
         sprites = [self.pkg.sprites[sprite_name] for sprite_name in sprite_names]
-        results = [self.sprite_locator.locate(sprite, frame, similarity, return_best=best_match) for sprite in sprites]
+        results = [self._locate_sprite(sprite, frame, threshold=threshold, **options) for sprite in sprites]
 
         if len(sprite_names) == 1:
             return results[0]
@@ -215,7 +217,7 @@ class Bot:
 
         return ""
 
-    def background_task(self, name, target, *args, **kwargs):
+    def background_task(self, name, target, args=tuple(), kwargs=dict()):
         task = TaskManager.create_task(
             name=name,
             target=target,
@@ -233,8 +235,11 @@ class Bot:
         return task
 
     def detect_numbers(self, image, sprite_name_list, max_digits):
-        fonts = [self.pkg.sprites[sprite_name] for sprite_name in sprite_name_list]
-        return detect_numbers(image, fonts, max_digits)
+        fonts = [self.pkg.sprites[sprite_name].grayscale for sprite_name in sprite_name_list]
+        return detect_numbers(image.grayscale, fonts, max_digits)
+
+    def _locate_sprite(self, sprite, frame, im_mode="grayscale", **options):
+        return self.sprite_locator.locate(sprite, frame, im_mode=im_mode, **options)
 
     def _setup_frame_buffer(self):
         FrameBuffer.setup(self.config)

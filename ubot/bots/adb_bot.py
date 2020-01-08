@@ -35,29 +35,15 @@ class ADBBot(Bot):
     def __exit__(self, *args, **kwargs):
         self.adb_client.stop_server()
 
-    def tap(self, sprite_or_coord, similarity=None, then_wait=0.7, ensure=False, **kwargs):
+    def tap(self, sprite_or_coord, then_wait=0.7, threshold=SIMILARITY_DEFAULT, **kwargs):
 
         if isinstance(sprite_or_coord, str):
-            sprite = self.pkg.sprites[sprite_or_coord]
-            similarity = similarity or SIMILARITY_DEFAULT
+            region = (self.seen(sprite_or_coord, threshold=threshold, best_match=True) or [None])[0]
 
-            region = self.sprite_locator.locate(sprite, self.retrieve_latest_frame(), similarity, return_best=True)
+            if region is None:
+                raise ADBBotError(f"Sprite '{sprite_or_coord}' not found on screen")
 
-            if region is not None:
-                self.input_controller.tap_randomly(*region)
-            else:
-                if ensure:
-                    def _wait_handler():
-                        nonlocal region
-                        region = self.sprite_locator.locate(sprite, self.retrieve_latest_frame(), similarity, return_best=True)
-                        if region is not None:
-                            return "break"
-
-                    self.wait_while(_wait_handler, fps=kwargs.get("fps", 30))
-                    self.input_controller.tap_randomly(*region)
-
-                else:
-                    raise ADBBotError(f"Sprite '{sprite_or_coord}' not found on screen")
+            self.input_controller.tap_randomly(*region)
 
         else:
             self.input_controller.tap_randomly(*sprite_or_coord)

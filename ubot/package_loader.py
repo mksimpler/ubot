@@ -9,7 +9,7 @@ import types
 
 from ubot import logger
 from ubot.config import config
-from ubot.sprite import Sprite
+from ubot.image import Sprite
 
 from ubot.settings import DEVELOPMENT_MODE_ACTIVE
 
@@ -59,7 +59,7 @@ class Package:
 
         for sprite_path in sprites_path.rglob("*.png"):
             sprite_name = "/".join([p for p in sprite_path.parts if p not in sprites_path.parts]).lower().replace(".png", "")
-            sprite = Sprite.from_path(str(sprite_path), name=sprite_name)
+            sprite = Sprite.frompath(str(sprite_path), name=sprite_name)
 
             if sprite_name not in sprites:
                 sprites[sprite_name] = sprite
@@ -79,7 +79,8 @@ class PackageToolkit:
             bot_maker=self.gen_bot_maker(),
             sprite_locator=self.gen_sprite_locator(),
             ocr=self.gen_ocr(),
-            coords=self.gen_coords()
+            coords=self.gen_coords(),
+            utils=self.gen_utils()
         )
 
     def gen_bot_maker(self):
@@ -106,6 +107,13 @@ class PackageToolkit:
             as_coordinate=as_coordinate,
             filter_coord=filter_coord,
             filter_similar_coords=filter_similar_coords
+        )
+
+    def gen_utils(self):
+        from ubot.utilities import extract_region_from_image, draw_retangle
+        return types.SimpleNamespace(
+            extract_region_from_image=extract_region_from_image,
+            draw_retangle=draw_retangle
         )
 
 

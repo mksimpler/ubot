@@ -8,7 +8,7 @@ import numpy
 import cv2
 
 from ubot.taskmanager import TaskManager
-from ubot.frame import Frame
+from ubot.image import Frame
 from ubot.frame_buffer import FrameBuffer
 from ubot.frame_limiter import FrameLimiter
 
@@ -81,7 +81,7 @@ class ADBFrameGrabber:
                     header = (self.screen_height, self.screen_width, 4)
 
                     frame_data = numpy.frombuffer(buffer, dtype=numpy.uint8).reshape(header)
-                    frame_data = cv2.cvtColor(frame_data, cv2.COLOR_RGBA2GRAY)
+                    frame_data = cv2.cvtColor(frame_data, cv2.COLOR_RGBA2BGR)
 
             finally:
                 self.adb_client.shell(f"rm {dev_path}")

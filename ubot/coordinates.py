@@ -1,3 +1,4 @@
+import math
 from scipy import spatial
 
 
@@ -28,26 +29,11 @@ class _Coordinate:
         """
         Calculate distance to other coordinate
         """
+        other = as_coordinate(other)
+
         dx = self.coord_x - other.coord_x
         dy = self.coord_y - other.coord_y
-        return int(_math.sqrt(dx**2 + dy**2))
-
-    def find_closest(self, coords):
-        """
-        Utilizes a k-d tree to find the closest coordiante to the specified
-        list of coordinates.
-
-        Args:
-            coords (array): Array of coordinates to search.
-
-        Returns:
-            array: An array containing the distance of the closest coordinate
-                in the list of coordinates to the specified coordinate as well the
-                index of where it is in the list of coordinates
-        """
-        coords = [coord.array[:2] if isinstance(coord, _Coordinate) else coord[:2] for coord in coords]
-        coord = self.array[:2]
-        return spatial.KDTree(coords).query(coord)
+        return int(math.sqrt(dx**2 + dy**2))
 
 
 class Region(_Coordinate):
@@ -306,13 +292,23 @@ def filter_similar_coords(coords, distance):
     Returns:
         array: An array containing the filtered coordinates.
     """
+    if len(coords) == 0:
+        return []
 
-    filtered_coords = []
+    filtered_coords = [coords[0][:2]]
 
-    if len(coords) > 0:
-        filtered_coords.append(coords[0])
-        for coord in coords:
-            if as_coordinate(coord).find_closest(filtered_coords)[0] > distance:
-                filtered_coords.append(coord)
+    for coord in coords:
+        if spatial.KDTree(filtered_coords).query(coord[:2])[0] > distance:
+            filtered_coords.append(coord[:2])
 
-    return filtered_coords
+    results = []
+
+    for filtered_coord in filtered_coords:
+        mcoords = [coord for coord in coords if filtered_coord == coord[:2]]
+        msizes = [coord[2] * coord[3] for coord in mcoords]
+        d = dict(zip(mcoords, msizes))
+
+        mcoord = min(d, key=d.get)
+        results.append(mcoord)
+
+    return results

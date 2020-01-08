@@ -8,8 +8,9 @@ __version__ = "0.0.1-dev"
 
 valid_commands = [
     "help",
+    "isolate-sprite",
     "launch",
-    "visual_debugger"
+    "visual-debugger"
 ]
 
 
@@ -36,6 +37,11 @@ def executable_help():
         print(f"{command.rjust(16)}: {description}")
 
     print("")
+
+
+def isolate_sprite(sprites_path, output_path):
+    from ubot.utilities import isolate_sprite
+    isolate_sprite(sprites_path, output_path)
 
 
 def launch(package_path, *args):
@@ -93,12 +99,14 @@ def visual_debugger(as_execute=True):
 
 command_function_mapping = {
     "help": executable_help,
+    "isolate-sprite": isolate_sprite,
     "launch": launch,
-    "visual_debugger": visual_debugger
+    "visual-debugger": visual_debugger
 }
 
 command_description_mapping = {
     "help": "Print this to console",
+    "isolate-sprite": "Isolating sprites from their background",
     "launch": "Launch package",
-    "visual_debugger": "Launch the visual debugger"
+    "visual-debugger": "Launch the visual debugger"
 }
